@@ -1,6 +1,6 @@
 name: Build SwiftPeek iOS
 on:
-  workflow_dispatch: # 手动触发编译
+  workflow_dispatch:
 
 jobs:
   build:
@@ -9,7 +9,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Archive (不签名)
+      - name: Archive unsigned IPA
         run: |
           cd ios-native
           xcodebuild archive \
@@ -20,24 +20,24 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
 
-      - name: 生成导出配置
+      - name: Generate ExportOptions.plist
         run: |
-          cat > ExportOptions.plist <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>development</string>
-    <key>signingStyle</key>
-    <string>manual</string>
-    <key>compileBitcode</key>
-    <false/>
-</dict>
-</plist>
-EOF
+          cat > ExportOptions.plist <<-EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>development</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>compileBitcode</key>
+              <false/>
+          </dict>
+          </plist>
+          EOF
 
-      - name: 导出未签名IPA
+      - name: Export IPA
         run: |
           xcodebuild -exportArchive \
             -archivePath SwiftPeek.xcarchive \
@@ -45,7 +45,7 @@ EOF
             -exportPath ./output \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: 上传IPA成品
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: SwiftPeek-unsigned
