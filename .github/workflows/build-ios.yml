@@ -1,50 +1,42 @@
 name: Build SwiftPeek iOS
 on:
   workflow_dispatch:
- 
+
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v5
 
-      - name: Archive unsigned IPA
+      - name: Archive iOS Simulator
         run: |
-          cd ios-native
           xcodebuild archive \
             -scheme SwiftPeek \
-            -sdk iphoneos \
-            -configuration Release \
-            -archivePath ../SwiftPeek.xcarchive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            -destination 'generic/platform=iOS Simulator' \
+            -archivePath ./archives/SwiftPeek-sim.xcarchive \
+            SKIP_INSTALL=NO \
+            BUILD_LIBRARY_FOR_DISTRIBUTION=YES
 
-      - name: Generate ExportOptions.plist
+      - name: Archive iOS Device
         run: |
-          echo '<?xml version="1.0" encoding="UTF-8"?>' > ExportOptions.plist
-          echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'>>ExportOptions.plist
-          echo '<plist version="1.0">'>>ExportOptions.plist
-          echo '<dict>'>>ExportOptions.plist
-          echo '    <key>method</key>'>>ExportOptions.plist
-          echo '    <string>development</string>'>>ExportOptions.plist
-          echo '    <key>signingStyle</key>'>>ExportOptions.plist
-          echo '    <string>manual</string>'>>ExportOptions.plist
-          echo '    <key>compileBitcode</key>'>>ExportOptions.plist
-          echo '    <false/>'>>ExportOptions.plist
-          echo '</dict>'>>ExportOptions.plist
-          echo '</plist>'>>ExportOptions.plist
+          xcodebuild archive \
+            -scheme SwiftPeek \
+            -destination 'generic/platform=iOS' \
+            -archivePath ./archives/SwiftPeek-device.xcarchive \
+            SKIP_INSTALL=NO \
+            BUILD_LIBRARY_FOR_DISTRIBUTION=YES
 
-      - name: Export IPA
+      - name: Make XCFramework
         run: |
-          xcodebuild -exportArchive \
-            -archivePath SwiftPeek.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath ./output \
-            CODE_SIGNING_ALLOWED=NO
+          rm -rf SwiftPeek.xcframework
+          xcodebuild -create-xcframework \
+            -archive ./archives/SwiftPeek-device.xcarchive -framework SwiftPeek.framework \
+            -archive ./archives/SwiftPeek-sim.xcarchive -framework SwiftPeek.framework \
+            -output SwiftPeek.xcframework
 
-      - name: Upload IPA
+      - name: Upload XCFramework Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SwiftPeek-unsigned
-          path: output/*.ipa
+          name: SwiftPeek-XCFramework
+          path: SwiftPeek.xcframework
